@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kanban Board</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-alt: #f9fafb;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-muted: #6b7280;
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.10), 0 4px 10px rgba(0,0,0,0.05);
+    --radius: 10px;
+    --radius-sm: 6px;
+    --col-bg: #ebecf0;
+    --col-header: #f3f4f6;
+    --high: #ef4444;
+    --med: #f59e0b;
+    --low: #10b981;
+    --progress-bg: #e5e7eb;
+    --progress-fill: #4f46e5;
+    --sidebar-bg: #ffffff;
+    --hover: #f3f4f6;
+  }
+  [data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #1a1d24;
+    --surface-alt: #232733;
+    --border: #2d3142;
+    --text: #e6e8ec;
+    --text-muted: #9aa3b2;
+    --primary: #818cf8;
+    --primary-hover: #6366f1;
+    --shadow: 0 1px 3px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.40), 0 4px 10px rgba(0,0,0,0.25);
+    --col-bg: #1a1d24;
+    --col-header: #232733;
+    --progress-bg: #2d3142;
+    --progress-fill: #818cf8;
+    --sidebar-bg: #15181f;
+    --hover: #232733;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.4;
+    transition: background 0.2s, color 0.2s;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  input, textarea, select { font-family: inherit; }
+
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 240px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar h1 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar h1 .logo {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: linear-gradient(135deg, #4f46e5, #ec4899);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 14px; font-weight: 800;
+  }
+  .sidebar .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin: 12px 0 4px 0;
+    font-weight: 600;
+  }
+  .project-list { display: flex; flex-direction: column; gap: 2px; }
+  .project-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font-size: 14px;
+    width: 100%;
+    transition: background 0.15s;
+  }
+  .project-item:hover { background: var(--hover); }
+  .project-item.active { background: var(--primary); color: white; }
+  .project-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .project-item .del {
+    opacity: 0;
+    background: transparent; border: none; color: inherit;
+    padding: 2px 6px; border-radius: 4px; font-size: 13px;
+    line-height: 1; cursor: pointer;
+  }
+  .project-item:hover .del { opacity: 0.6; }
+  .project-item .del:hover { opacity: 1; background: rgba(0,0,0,0.15); }
+
+  .btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--hover); }
+  .btn-primary {
+    background: var(--primary); color: white; border-color: var(--primary);
+  }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon {
+    padding: 6px;
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+
+  .theme-toggle {
+    margin-top: auto;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+  }
+  .switch {
+    position: relative; display: inline-block; width: 36px; height: 20px;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: var(--border); border-radius: 20px; transition: 0.2s;
+  }
+  .slider:before {
+    position: absolute; content: ""; height: 14px; width: 14px;
+    left: 3px; bottom: 3px; background: white; border-radius: 50%;
+    transition: 0.2s;
+  }
+  .switch input:checked + .slider { background: var(--primary); }
+  .switch input:checked + .slider:before { transform: translateX(16px); }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .topbar h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .topbar .spacer { flex: 1; }
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .filter-select {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .filter-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-right: -4px;
+  }
+
+  /* BOARD */
+  .board {
+    flex: 1;
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: flex-start;
+  }
+  .column {
+    background: var(--col-bg);
+    border-radius: var(--radius);
+    width: 300px;
+    min-width: 300px;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.2s;
+  }
+  .column.drag-over { background: color-mix(in srgb, var(--primary) 18%, var(--col-bg)); }
+  .column-header {
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .column-title {
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex: 1;
+  }
+  .column-count {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+  .column-body {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 60px;
+  }
+  .column-footer { padding: 8px 10px 12px; }
+  .add-card-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .add-card-btn:hover { background: var(--hover); color: var(--text); }
+  .quick-add { display: flex; flex-direction: column; gap: 6px; }
+  .quick-add textarea {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    resize: none;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    min-height: 60px;
+  }
+  .quick-add-actions { display: flex; gap: 6px; }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    box-shadow: var(--shadow);
+    cursor: grab;
+    border: 1px solid transparent;
+    transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .card:hover { box-shadow: var(--shadow-lg); border-color: var(--primary); }
+  .card.dragging { opacity: 0.4; cursor: grabbing; }
+  .card-priority {
+    height: 4px;
+    border-radius: 2px;
+    margin: -2px 0 8px 0;
+  }
+  .card-priority.high { background: var(--high); }
+  .card-priority.med { background: var(--med); }
+  .card-priority.low { background: var(--low); }
+  .card-title { font-weight: 500; font-size: 14px; word-wrap: break-word; }
+  .card-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-meta {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+  }
+  .badge.high { background: rgba(239,68,68,0.12); color: var(--high); border-color: rgba(239,68,68,0.25); }
+  .badge.med { background: rgba(245,158,11,0.12); color: var(--med); border-color: rgba(245,158,11,0.25); }
+  .badge.low { background: rgba(16,185,129,0.12); color: var(--low); border-color: rgba(16,185,129,0.25); }
+  .badge.due { background: var(--surface-alt); }
+  .badge.due.overdue { background: rgba(239,68,68,0.15); color: var(--high); border-color: rgba(239,68,68,0.3); }
+
+  .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .avatar.sm { width: 20px; height: 20px; font-size: 10px; }
+
+  .progress {
+    margin-top: 8px;
+    height: 6px;
+    background: var(--progress-bg);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #ec4899);
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+  .progress-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+    animation: fadeIn 0.15s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--surface);
+    color: var(--text);
+    border-radius: var(--radius);
+    width: 100%; max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.2s ease;
+  }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 8px;
+  }
+  .form-row { margin-bottom: 14px; }
+  .form-row label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .form-row input[type="text"],
+  .form-row input[type="date"],
+  .form-row select,
+  .form-row textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .form-row textarea { resize: vertical; min-height: 80px; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .close-btn {
+    background: transparent; border: none; font-size: 20px;
+    color: var(--text-muted); cursor: pointer; padding: 4px 8px;
+    line-height: 1; border-radius: 4px;
+  }
+  .close-btn:hover { background: var(--hover); color: var(--text); }
+
+  /* Checklist */
+  .checklist { display: flex; flex-direction: column; gap: 6px; }
+  .checklist-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-alt);
+  }
+  .checklist-item input[type="checkbox"] { cursor: pointer; }
+  .checklist-item .text { flex: 1; font-size: 13px; }
+  .checklist-item.done .text { text-decoration: line-through; color: var(--text-muted); }
+  .checklist-item .del-item {
+    background: transparent; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px;
+  }
+  .checklist-item .del-item:hover { color: var(--high); background: var(--hover); }
+  .checklist-add { display: flex; gap: 6px; margin-top: 6px; }
+  .checklist-add input { flex: 1; padding: 6px 8px; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 20px;
+    font-size: 13px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { width: 200px; }
+    .topbar { padding: 10px 14px; }
+    .board { padding: 12px; gap: 12px; }
+  }
+  @media (max-width: 560px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; max-height: 200px; border-right: none; border-bottom: 1px solid var(--border); }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h1><span class="logo">K</span> Kanban</h1>
+
+    <div class="section-title">Projects</div>
+    <div class="project-list" id="projectList"></div>
+    <button class="btn btn-block btn-sm" id="addProjectBtn">+ New Project</button>
+
+    <div class="section-title">Team</div>
+    <div id="memberList" style="display:flex; flex-direction:column; gap:4px;"></div>
+    <button class="btn btn-block btn-sm" id="addMemberBtn">+ Add Member</button>
+
+    <div class="theme-toggle">
+      <span style="font-size:13px;">Dark mode</span>
+      <label class="switch">
+        <input type="checkbox" id="themeToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <h2 id="projectTitle">Project</h2>
+      <div class="spacer"></div>
+      <div class="filters">
+        <span class="filter-label">Assignee</span>
+        <select id="filterAssignee" class="filter-select">
+          <option value="">All</option>
+        </select>
+        <span class="filter-label">Priority</span>
+        <select id="filterPriority" class="filter-select">
+          <option value="">All</option>
+          <option value="high">High</option>
+          <option value="med">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button class="btn btn-sm" id="clearFiltersBtn">Clear</button>
+      </div>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+</div>
+
+<!-- Modal mounted dynamically -->
+<div id="modalRoot"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const COLUMNS = [
+  { id: "backlog",     name: "Backlog" },
+  { id: "inprogress",  name: "In Progress" },
+  { id: "inreview",    name: "In Review" },
+  { id: "done",        name: "Done" },
+];
+
+const PRIORITIES = {
+  high: { label: "High",   cls: "high" },
+  med:  { label: "Medium", cls: "med"  },
+  low:  { label: "Low",    cls: "low"  },
+};
+
+const AVATAR_COLORS = [
+  "#ef4444","#f59e0b","#10b981","#3b82f6","#8b5cf6",
+  "#ec4899","#06b6d4","#84cc16","#f97316","#6366f1"
+];
+
+const STORAGE_KEY = "kanban-app-v1";
+
+const defaultState = () => {
+  const proj1Id = uid();
+  return {
+    projects: [
+      {
+        id: proj1Id,
+        name: "My First Project",
+        cards: [
+          { id: uid(), title: "Welcome to your Kanban board!", desc: "Click a card to edit it, or drag it between columns.", priority: "med", column: "backlog", assignee: null, due: null, checklist: [] },
+          { id: uid(), title: "Try adding a checklist", desc: "Sub-tasks drive the progress bar percentage.", priority: "low", column: "inprogress", assignee: null, due: null, checklist: [
+            { id: uid(), text: "Open this card", done: true },
+            { id: uid(), text: "Add a new item", done: false },
+            { id: uid(), text: "Check it off", done: false },
+          ]},
+          { id: uid(), title: "Switch to dark mode", desc: "Toggle in the sidebar.", priority: "low", column: "done", assignee: null, due: null, checklist: [] },
+        ]
+      }
+    ],
+    members: [
+      { id: uid(), name: "You", color: AVATAR_COLORS[0] }
+    ],
+    activeProjectId: proj1Id,
+    theme: "light",
+    filters: { assignee: "", priority: "" }
+  };
+};
+
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    // Light validation / migration
+    if (!parsed.projects || !Array.isArray(parsed.projects) || parsed.projects.length === 0) return defaultState();
+    if (!parsed.members) parsed.members = [];
+    if (!parsed.filters) parsed.filters = { assignee: "", priority: "" };
+    if (!parsed.theme) parsed.theme = "light";
+    if (!parsed.activeProjectId || !parsed.projects.find(p => p.id === parsed.activeProjectId)) {
+      parsed.activeProjectId = parsed.projects[0].id;
+    }
+    return parsed;
+  } catch (e) {
+    console.warn("Failed to load state, resetting.", e);
+    return defaultState();
+  }
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch (e) { console.warn("Failed to save state:", e); }
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+function activeProject() {
+  return state.projects.find(p => p.id === state.activeProjectId);
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+
+function $(sel) { return document.querySelector(sel); }
+
+function renderAll() {
+  applyTheme();
+  renderProjects();
+  renderMembers();
+  renderFilters();
+  renderBoard();
+}
+
+function applyTheme() {
+  document.documentElement.setAttribute("data-theme", state.theme);
+  const tog = $("#themeToggle");
+  if (tog) tog.checked = state.theme === "dark";
+}
+
+function renderProjects() {
+  const list = $("#projectList");
+  list.innerHTML = "";
+  state.projects.forEach(proj => {
+    const btn = document.createElement("button");
+    btn.className = "project-item" + (proj.id === state.activeProjectId ? " active" : "");
+    btn.innerHTML = `<span class="name"></span><span class="del" title="Delete project">×</span>`;
+    btn.querySelector(".name").textContent = proj.name;
+    btn.addEventListener("click", (e) => {
+      if (e.target.classList.contains("del")) return;
+      state.activeProjectId = proj.id;
+      saveState();
+      renderAll();
+    });
+    btn.querySelector(".del").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.projects.length === 1) {
+        alert("You must have at least one project.");
+        return;
+      }
+      if (!confirm(`Delete project "${proj.name}" and all its cards?`)) return;
+      state.projects = state.projects.filter(p => p.id !== proj.id);
+      if (state.activeProjectId === proj.id) state.activeProjectId = state.projects[0].id;
+      saveState();
+      renderAll();
+    });
+    list.appendChild(btn);
+  });
+
+  const proj = activeProject();
+  $("#projectTitle").textContent = proj ? proj.name : "";
+}
+
+function renderMembers() {
+  const list = $("#memberList");
+  list.innerHTML = "";
+  if (state.members.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "font-size:12px; color: var(--text-muted); padding: 4px 8px;";
+    empty.textContent = "No members yet";
+    list.appendChild(empty);
+    return;
+  }
+  state.members.forEach(m => {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px;";
+    row.className = "member-row";
+    row.innerHTML = `
+      <span class="avatar sm" style="background:${m.color}">${initials(m.name)}</span>
+      <span style="flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+      <button class="close-btn" data-id="${m.id}" title="Remove" style="font-size:14px; padding:0 6px;">×</button>
+    `;
+    row.querySelector("span:nth-child(2)").textContent = m.name;
+    row.querySelector("button").addEventListener("click", () => {
+      if (!confirm(`Remove ${m.name}? Their cards will become unassigned.`)) return;
+      state.members = state.members.filter(x => x.id !== m.id);
+      // Unassign their cards across all projects
+      state.projects.forEach(p => p.cards.forEach(c => { if (c.assignee === m.id) c.assignee = null; }));
+      if (state.filters.assignee === m.id) state.filters.assignee = "";
+      saveState();
+      renderAll();
+    });
+    list.appendChild(row);
+  });
+}
+
+function renderFilters() {
+  const sel = $("#filterAssignee");
+  const current = state.filters.assignee;
+  sel.innerHTML = '<option value="">All</option><option value="__unassigned__">Unassigned</option>';
+  state.members.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name;
+    sel.appendChild(opt);
+  });
+  sel.value = current || "";
+  $("#filterPriority").value = state.filters.priority || "";
+}
+
+function renderBoard() {
+  const board = $("#board");
+  board.innerHTML = "";
+  const proj = activeProject();
+  if (!proj) return;
+
+  const f = state.filters;
+  const visibleCards = proj.cards.filter(c => {
+    if (f.assignee === "__unassigned__" && c.assignee) return false;
+    if (f.assignee && f.assignee !== "__unassigned__" && c.assignee !== f.assignee) return false;
+    if (f.priority && c.priority !== f.priority) return false;
+    return true;
+  });
+
+  COLUMNS.forEach(col => {
+    const cards = visibleCards.filter(c => c.column === col.id);
+    const colEl = document.createElement("div");
+    colEl.className = "column";
+    colEl.dataset.colId = col.id;
+    colEl.innerHTML = `
+      <div class="column-header">
+        <div class="column-title"></div>
+        <div class="column-count">${cards.length}</div>
+      </div>
+      <div class="column-body" data-col-body="${col.id}"></div>
+      <div class="column-footer" data-col-footer="${col.id}"></div>
+    `;
+    colEl.querySelector(".column-title").textContent = col.name;
+
+    const body = colEl.querySelector(".column-body");
+    cards.forEach(card => body.appendChild(buildCardEl(card)));
+
+    const footer = colEl.querySelector(".column-footer");
+    footer.appendChild(buildAddCardEl(col.id));
+
+    // Drag/drop on column
+    body.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      colEl.classList.add("drag-over");
+    });
+    body.addEventListener("dragleave", (e) => {
+      if (!colEl.contains(e.relatedTarget)) colEl.classList.remove("drag-over");
+    });
+    body.addEventListener("drop", (e) => {
+      e.preventDefault();
+      colEl.classList.remove("drag-over");
+      const cardId = e.dataTransfer.getData("text/cardId");
+      if (!cardId) return;
+      moveCardToColumn(cardId, col.id);
+    });
+
+    board.appendChild(colEl);
+  });
+}
+
+function buildCardEl(card) {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.draggable = true;
+  el.dataset.cardId = card.id;
+
+  const prio = PRIORITIES[card.priority] || PRIORITIES.med;
+  const member = card.assignee ? state.members.find(m => m.id === card.assignee) : null;
+  const checklist = card.checklist || [];
+  const total = checklist.length;
+  const done = checklist.filter(i => i.done).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const isInProgress = card.column === "inprogress";
+
+  // Build DOM safely
+  const prioBar = document.createElement("div");
+  prioBar.className = "card-priority " + prio.cls;
+  el.appendChild(prioBar);
+
+  const title = document.createElement("div");
+  title.className = "card-title";
+  title.textContent = card.title;
+  el.appendChild(title);
+
+  if (card.desc) {
+    const desc = document.createElement("div");
+    desc.className = "card-desc";
+    desc.textContent = card.desc;
+    el.appendChild(desc);
+  }
+
+  // Progress bar: show when in progress AND has checklist, OR when checklist has progress
+  if (total > 0 && (isInProgress || (done > 0 && done < total))) {
+    const prog = document.createElement("div");
+    prog.className = "progress";
+    const bar = document.createElement("div");
+    bar.className = "progress-bar";
+    bar.style.width = pct + "%";
+    prog.appendChild(bar);
+    el.appendChild(prog);
+
+    const pt = document.createElement("div");
+    pt.className = "progress-text";
+    pt.textContent = `${done}/${total} • ${pct}%`;
+    el.appendChild(pt);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "card-meta";
+
+  const pBadge = document.createElement("span");
+  pBadge.className = "badge " + prio.cls;
+  pBadge.textContent = prio.label;
+  meta.appendChild(pBadge);
+
+  if (card.due) {
+    const dueBadge = document.createElement("span");
+    dueBadge.className = "badge due";
+    const dueDate = new Date(card.due + "T23:59:59");
+    const now = new Date();
+    if (dueDate < now && card.column !== "done") dueBadge.classList.add("overdue");
+    dueBadge.textContent = formatDate(card.due);
+    meta.appendChild(dueBadge);
+  }
+
+  if (total > 0) {
+    const cl = document.createElement("span");
+    cl.className = "badge";
+    cl.textContent = `☑ ${done}/${total}`;
+    meta.appendChild(cl);
+  }
+
+  // Assignee avatar pushed to the right
+  if (member) {
+    const spacer = document.createElement("span");
+    spacer.style.flex = "1";
+    meta.appendChild(spacer);
+    const av = document.createElement("span");
+    av.className = "avatar sm";
+    av.style.background = member.color;
+    av.title = member.name;
+    av.textContent = initials(member.name);
+    meta.appendChild(av);
+  }
+
+  el.appendChild(meta);
+
+  // Events
+  el.addEventListener("click", () => openCardModal(card.id));
+  el.addEventListener("dragstart", (e) => {
+    e.dataTransfer.setData("text/cardId", card.id);
+    e.dataTransfer.effectAllowed = "move";
+    el.classList.add("dragging");
+  });
+  el.addEventListener("dragend", () => el.classList.remove("dragging"));
+
+  return el;
+}
+
+function buildAddCardEl(colId) {
+  const wrap = document.createElement("div");
+  const btn = document.createElement("button");
+  btn.className = "add-card-btn";
+  btn.textContent = "+ Add a card";
+  wrap.appendChild(btn);
+
+  btn.addEventListener("click", () => {
+    wrap.innerHTML = "";
+    const qa = document.createElement("div");
+    qa.className = "quick-add";
+    qa.innerHTML = `
+      <textarea placeholder="Enter a title for this card..."></textarea>
+      <div class="quick-add-actions">
+        <button class="btn btn-primary btn-sm">Add card</button>
+        <button class="btn btn-sm cancel">Cancel</button>
+      </div>
+    `;
+    wrap.appendChild(qa);
+    const ta = qa.querySelector("textarea");
+    ta.focus();
+
+    const add = () => {
+      const title = ta.value.trim();
+      if (!title) return;
+      const proj = activeProject();
+      proj.cards.push({
+        id: uid(), title, desc: "",
+        priority: "med", column: colId,
+        assignee: null, due: null, checklist: []
+      });
+      saveState();
+      renderBoard();
+    };
+    qa.querySelector(".btn-primary").addEventListener("click", add);
+    qa.querySelector(".cancel").addEventListener("click", () => renderBoard());
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); add(); }
+      if (e.key === "Escape") renderBoard();
+    });
+  });
+
+  return wrap;
+}
+
+function moveCardToColumn(cardId, colId) {
+  const proj = activeProject();
+  const card = proj.cards.find(c => c.id === cardId);
+  if (!card || card.column === colId) return;
+  card.column = colId;
+  saveState();
+  renderBoard();
+}
+
+/* ============================================================
+   CARD MODAL
+   ============================================================ */
+
+function openCardModal(cardId) {
+  const proj = activeProject();
+  const card = proj.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  const root = $("#modalRoot");
+  root.innerHTML = "";
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  const memberOptions = state.members.map(m =>
+    `<option value="${m.id}">${escapeHtml(m.name)}</option>`
+  ).join("");
+
+  const columnOptions = COLUMNS.map(c =>
+    `<option value="${c.id}">${c.name}</option>`
+  ).join("");
+
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Card</h3>
+        <button class="close-btn" data-action="close">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label>Title</label>
+          <input type="text" id="f-title" />
+        </div>
+        <div class="form-row">
+          <label>Description</label>
+          <textarea id="f-desc" placeholder="Add notes, links, context..."></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Status</label>
+            <select id="f-column">${columnOptions}</select>
+          </div>
+          <div class="form-row">
+            <label>Priority</label>
+            <select id="f-priority">
+              <option value="high">High</option>
+              <option value="med">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Assignee</label>
+            <select id="f-assignee">
+              <option value="">Unassigned</option>
+              ${memberOptions}
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Due Date</label>
+            <input type="date" id="f-due" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Checklist <span id="cl-progress" style="float:right; font-weight:normal; text-transform:none; letter-spacing:0;"></span></label>
+          <div class="checklist" id="f-checklist"></div>
+          <div class="checklist-add">
+            <input type="text" id="cl-input" placeholder="Add a sub-task..." />
+            <button class="btn btn-sm btn-primary" id="cl-add">Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-action="delete" style="color: var(--high); border-color: rgba(239,68,68,0.4); margin-right:auto;">Delete</button>
+        <button class="btn" data-action="close">Cancel</button>
+        <button class="btn btn-primary" data-action="save">Save</button>
+      </div>
+    </div>
+  `;
+  root.appendChild(overlay);
+
+  // Fill values
+  const fTitle = overlay.querySelector("#f-title");
+  const fDesc = overlay.querySelector("#f-desc");
+  const fColumn = overlay.querySelector("#f-column");
+  const fPriority = overlay.querySelector("#f-priority");
+  const fAssignee = overlay.querySelector("#f-assignee");
+  const fDue = overlay.querySelector("#f-due");
+  const checklistEl = overlay.querySelector("#f-checklist");
+  const clProg = overlay.querySelector("#cl-progress");
+
+  fTitle.value = card.title;
+  fDesc.value = card.desc || "";
+  fColumn.value = card.column;
+  fPriority.value = card.priority || "med";
+  fAssignee.value = card.assignee || "";
+  fDue.value = card.due || "";
+
+  // Working copy of checklist (commit on save)
+  let workChecklist = JSON.parse(JSON.stringify(card.checklist || []));
+
+  function renderChecklist() {
+    checklistEl.innerHTML = "";
+    if (workChecklist.length === 0) {
+      const e = document.createElement("div");
+      e.style.cssText = "font-size:12px; color:var(--text-muted); padding:4px 0;";
+      e.textContent = "No items yet.";
+      checklistEl.appendChild(e);
+    } else {
+      workChecklist.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "checklist-item" + (item.done ? " done" : "");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!item.done;
+        cb.addEventListener("change", () => { item.done = cb.checked; renderChecklist(); });
+        const text = document.createElement("span");
+        text.className = "text";
+        text.textContent = item.text;
+        text.title = "Click to edit";
+        text.style.cursor = "text";
+        text.addEventListener("click", () => {
+          const input = document.createElement("input");
+          input.type = "text";
+          input.value = item.text;
+          input.style.cssText = "flex:1; padding:4px 6px; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--text); font-size:13px;";
+          text.replaceWith(input);
+          input.focus();
+          input.select();
+          const commit = () => {
+            const v = input.value.trim();
+            if (v) item.text = v;
+            renderChecklist();
+          };
+          input.addEventListener("blur", commit);
+          input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); commit(); }
+            if (e.key === "Escape") renderChecklist();
+          });
+        });
+        const del = document.createElement("button");
+        del.className = "del-item";
+        del.textContent = "×";
+        del.title = "Remove";
+        del.addEventListener("click", () => {
+          workChecklist = workChecklist.filter(x => x.id !== item.id);
+          renderChecklist();
+        });
+        row.append(cb, text, del);
+        checklistEl.appendChild(row);
+      });
+    }
+    const total = workChecklist.length;
+    const done = workChecklist.filter(i => i.done).length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    clProg.textContent = total ? `${done}/${total} • ${pct}%` : "";
+  }
+  renderChecklist();
+
+  const clInput = overlay.querySelector("#cl-input");
+  const clAddBtn = overlay.querySelector("#cl-add");
+  const addItem = () => {
+    const v = clInput.value.trim();
+    if (!v) return;
+    workChecklist.push({ id: uid(), text: v, done: false });
+    clInput.value = "";
+    renderChecklist();
+    clInput.focus();
+  };
+  clAddBtn.addEventListener("click", addItem);
+  clInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addItem(); }
+  });
+
+  // Actions
+  const close = () => { root.innerHTML = ""; document.removeEventListener("keydown", onKey); };
+  const save = () => {
+    const t = fTitle.value.trim();
+    if (!t) { fTitle.focus(); return; }
+    card.title = t;
+    card.desc = fDesc.value.trim();
+    card.column = fColumn.value;
+    card.priority = fPriority.value;
+    card.assignee = fAssignee.value || null;
+    card.due = fDue.value || null;
+    card.checklist = workChecklist;
+    saveState();
+    renderBoard();
+    close();
+  };
+  const del = () => {
+    if (!confirm("Delete this card?")) return;
+    proj.cards = proj.cards.filter(c => c.id !== card.id);
+    saveState();
+    renderBoard();
+    close();
+  };
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) close();
+    const act = e.target.dataset && e.target.dataset.action;
+    if (act === "close") close();
+    else if (act === "save") save();
+    else if (act === "delete") del();
+  });
+
+  const onKey = (e) => {
+    if (e.key === "Escape") close();
+    else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save();
+  };
+  document.addEventListener("keydown", onKey);
+
+  setTimeout(() => fTitle.focus(), 50);
+}
+
+/* ============================================================
+   MEMBER / PROJECT MGMT
+   ============================================================ */
+
+function addProject() {
+  const name = prompt("Project name:");
+  if (!name || !name.trim()) return;
+  const p = { id: uid(), name: name.trim(), cards: [] };
+  state.projects.push(p);
+  state.activeProjectId = p.id;
+  saveState();
+  renderAll();
+}
+
+function addMember() {
+  const name = prompt("Team member name:");
+  if (!name || !name.trim()) return;
+  const used = new Set(state.members.map(m => m.color));
+  const color = AVATAR_COLORS.find(c => !used.has(c)) || AVATAR_COLORS[state.members.length % AVATAR_COLORS.length];
+  state.members.push({ id: uid(), name: name.trim(), color });
+  saveState();
+  renderAll();
+}
+
+/* ============================================================
+   UTIL
+   ============================================================ */
+
+function initials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function formatDate(iso) {
+  // iso = YYYY-MM-DD
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+
+$("#addProjectBtn").addEventListener("click", addProject);
+$("#addMemberBtn").addEventListener("click", addMember);
+$("#themeToggle").addEventListener("change", (e) => {
+  state.theme = e.target.checked ? "dark" : "light";
+  saveState();
+  applyTheme();
+});
+$("#filterAssignee").addEventListener("change", (e) => {
+  state.filters.assignee = e.target.value;
+  saveState();
+  renderBoard();
+});
+$("#filterPriority").addEventListener("change", (e) => {
+  state.filters.priority = e.target.value;
+  saveState();
+  renderBoard();
+});
+$("#clearFiltersBtn").addEventListener("click", () => {
+  state.filters = { assignee: "", priority: "" };
+  saveState();
+  renderFilters();
+  renderBoard();
+});
+
+// Initial render
+renderAll();
+</script>
+</body>
+</html>
