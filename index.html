@@ -202,11 +202,46 @@
     display: flex; flex-direction: column; transition: background 0.2s;
   }
   .column.drag-over { background: color-mix(in srgb, var(--primary) 18%, var(--col-bg)); }
+  .column.dragging-col { opacity: 0.4; }
   .column-header {
     padding: 12px 14px; display: flex; align-items: center;
     gap: 8px; border-bottom: 1px solid var(--border);
   }
-  .column-title { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; flex: 1; }
+  .column-drag-handle {
+    cursor: grab; color: var(--text-muted); font-size: 14px; line-height: 1;
+    user-select: none; letter-spacing: -2px; padding: 0 2px;
+    opacity: 0.4; transition: opacity 0.15s;
+  }
+  .column-header:hover .column-drag-handle { opacity: 1; }
+  .column-drag-handle:active { cursor: grabbing; }
+  .column-title { font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; flex: 1; cursor: text; }
+  .column-title-input {
+    flex: 1; font: inherit; font-weight: 600; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--primary); border-radius: 4px;
+    padding: 2px 6px; outline: none; width: 100%;
+  }
+  .column-del {
+    opacity: 0; background: transparent; border: none; color: var(--text-muted);
+    font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .column-header:hover .column-del { opacity: 0.6; }
+  .column-del:hover { opacity: 1; color: var(--high); background: rgba(239,68,68,0.12); }
+  .column-add-tile {
+    width: 260px; min-width: 260px; align-self: flex-start;
+    background: transparent; border: 2px dashed var(--border);
+    color: var(--text-muted); padding: 14px;
+    border-radius: var(--radius); font-size: 13px; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .column-add-tile:hover { background: var(--hover); color: var(--text); border-color: var(--primary); }
+  .col-drop-indicator {
+    width: 4px; min-width: 4px; align-self: stretch;
+    background: var(--primary); border-radius: 2px;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
   .column-count {
     background: var(--surface); color: var(--text-muted);
     font-size: 12px; padding: 2px 8px; border-radius: 10px; font-weight: 600;
@@ -237,8 +272,18 @@
     border: 1px solid transparent;
     transition: transform 0.1s, box-shadow 0.15s, border-color 0.15s;
   }
+  .card { position: relative; }
   .card:hover { box-shadow: var(--shadow-lg); border-color: var(--primary); }
   .card.dragging { opacity: 0.4; cursor: grabbing; }
+  .card-archive {
+    position: absolute; top: 4px; right: 4px;
+    opacity: 0; background: transparent; border: none;
+    font-size: 13px; line-height: 1; padding: 4px 6px;
+    border-radius: 4px; cursor: pointer; color: var(--text-muted);
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .card:hover .card-archive { opacity: 0.7; }
+  .card-archive:hover { opacity: 1; background: var(--hover); color: var(--text); }
   .card-priority { height: 4px; border-radius: 2px; margin: -2px 0 8px 0; }
   .card-priority.high { background: var(--high); }
   .card-priority.med  { background: var(--med);  }
@@ -354,6 +399,68 @@
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+  /* VIEW SWITCH + CRM + ARCHIVED */
+  .view-switch {
+    display: flex; flex-direction: row; gap: 4px; padding: 4px;
+    background-color: var(--surface-alt); border-radius: var(--radius-sm); margin-bottom: 12px;
+  }
+  .view-btn {
+    flex: 1; border: none; background-color: transparent; color: var(--text);
+    font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 4px;
+    cursor: pointer; transition: background-color 0.15s;
+  }
+  .view-btn:hover { background-color: var(--hover); }
+  .view-btn.active { background-color: var(--primary); color: white; }
+  .crm-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .crm-toolbar { display: flex; flex-direction: row; gap: 8px; align-items: center; }
+  .crm-table-wrap { flex: 1; overflow: auto; padding: 20px; }
+  .crm-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  .crm-table th {
+    text-align: left; padding: 10px 12px; background-color: var(--surface-alt);
+    color: var(--text-muted); text-transform: uppercase; font-size: 11px;
+    letter-spacing: 0.04em; font-weight: 600; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; cursor: pointer; user-select: none;
+  }
+  .crm-table th:hover { color: var(--text); }
+  .crm-table th .sort-arrow { opacity: 0.5; margin-left: 4px; font-size: 10px; }
+  .crm-table th.sorted .sort-arrow { opacity: 1; color: var(--primary); }
+  .crm-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .crm-table tr:hover td { background-color: var(--surface-alt); }
+  .crm-cell[contenteditable] {
+    outline: none; min-height: 18px; padding: 2px 4px;
+    border-radius: 3px; transition: background-color 0.1s;
+  }
+  .crm-cell[contenteditable]:focus {
+    background-color: var(--surface-alt); box-shadow: 0 0 0 2px var(--primary);
+  }
+  .crm-cell input[type=date] {
+    background-color: transparent; border: none; color: var(--text);
+    font-size: 13px; padding: 0; outline: none;
+  }
+  .crm-status-select {
+    border: none; padding: 4px 8px; border-radius: 12px; font-size: 11px;
+    font-weight: 600; text-transform: uppercase; color: white; cursor: pointer;
+    min-width: 90px; appearance: none; background-image: none;
+  }
+  .crm-row-del {
+    background-color: transparent; border: none; color: var(--text-muted);
+    padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 14px; opacity: 0;
+  }
+  .crm-table tr:hover .crm-row-del { opacity: 0.6; }
+  .crm-row-del:hover { opacity: 1; color: var(--high); background-color: rgba(239, 68, 68, 0.12); }
+  .archived-list { display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+  .archived-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    background-color: var(--surface-alt); border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+  .archived-item .arch-title { flex: 1; font-weight: 500; font-size: 14px; }
+  .archived-item .arch-col {
+    font-size: 11px; color: var(--text-muted); padding: 2px 8px;
+    background-color: var(--surface); border-radius: 10px;
+  }
+  .archived-item button { padding: 4px 10px; }
+
   @media (max-width: 768px) {
     .sidebar { width: 200px; }
     .topbar { padding: 10px 14px; }
@@ -376,12 +483,17 @@
 <div class="app" style="display:none;" id="appRoot">
   <aside class="sidebar">
     <h1><span class="logo">K</span> Kanban</h1>
+    <div class="view-switch">
+      <button class="view-btn" data-view="board" id="viewBoardBtn">Board</button>
+      <button class="view-btn" data-view="crm"   id="viewCRMBtn">CRM</button>
+    </div>
     <div class="section-title">Projects</div>
     <div class="project-list" id="projectList"></div>
     <button class="btn btn-block btn-sm" id="addProjectBtn">+ New Project</button>
     <div class="section-title">Team</div>
     <div id="memberList" style="display:flex; flex-direction:column; gap:4px;"></div>
     <button class="btn btn-block btn-sm" id="addMemberBtn">+ Add Member</button>
+    <button class="btn btn-block btn-sm" id="viewArchivedBtn" style="margin-top:4px;">📦 View Archived</button>
     <div class="theme-toggle">
       <span style="font-size:13px;">Dark mode</span>
       <label class="switch">
@@ -413,6 +525,21 @@
       </div>
     </div>
     <div class="board" id="board"></div>
+  </main>
+
+  <main class="crm-main" style="display:none;">
+    <div class="topbar">
+      <h2>CRM</h2>
+      <div class="spacer"></div>
+      <div class="crm-toolbar">
+        <input type="text" id="crmFilterText" class="filter-select" placeholder="Search org / contact / email..." style="min-width:220px;" />
+        <select id="crmFilterStatus" class="filter-select">
+          <option value="">All statuses</option>
+        </select>
+        <button class="btn btn-sm btn-primary" id="crmAddBtn">+ New Contact</button>
+      </div>
+    </div>
+    <div class="crm-table-wrap"><table class="crm-table" id="crmTable"></table></div>
   </main>
 </div>
 
@@ -451,7 +578,9 @@ const PRESENCE_PATH = "kanban/presence";
 /* ============================================================
    COLUMNS & CONSTANTS
    ============================================================ */
-const COLUMNS = [
+/* DEFAULT_COLUMNS is only used to seed new projects and to migrate
+   legacy projects that were created before columns became per-project. */
+const DEFAULT_COLUMNS = [
   { id: "backlog",     name: "Backlog"     },
   { id: "inprogress",  name: "In Progress" },
   { id: "inreview",    name: "In Review"   },
@@ -461,6 +590,15 @@ const PRIORITIES = {
   high: { label: "High",   cls: "high" },
   med:  { label: "Medium", cls: "med"  },
   low:  { label: "Low",    cls: "low"  },
+};
+const CRM_STATUSES = ["sent", "interested", "replied", "skipped", "planned", "bounced"];
+const CRM_STATUS_COLORS = {
+  sent:       "#6b7280",
+  interested: "#3b82f6",
+  replied:    "#10b981",
+  skipped:    "#f59e0b",
+  planned:    "#8b5cf6",
+  bounced:    "#ef4444",
 };
 const AVATAR_COLORS = [
   "#ef4444","#f59e0b","#10b981","#3b82f6","#8b5cf6",
@@ -473,8 +611,15 @@ const AVATAR_COLORS = [
    local  — per-browser only (theme, active project, filters)
    ============================================================ */
 const LOCAL_KEY = "kanban-local-v2";
-let shared = { projects: [], members: [] };
-let local  = { activeProjectId: null, theme: "light", filters: { assignee: "", priority: "" } };
+let shared = { projects: [], members: [], crm: [] };
+let local  = {
+  activeProjectId: null,
+  theme: "light",
+  view: "board",                            // "board" | "crm"
+  showArchived: false,                      // controls Archived modal trigger only
+  filters:    { assignee: "", priority: "" },
+  crmFilters: { text: "", status: "", sortBy: "createdAt", sortDir: "desc" }
+};
 
 function loadLocalPrefs() {
   try { const r = localStorage.getItem(LOCAL_KEY); if (r) Object.assign(local, JSON.parse(r)); } catch {}
@@ -494,11 +639,20 @@ function toArr(v) {
 }
 function normalise(data) {
   return {
-    projects: toArr(data.projects).map(p => ({
-      ...p,
-      cards: toArr(p.cards).map(c => ({ ...c, checklist: toArr(c.checklist) }))
-    })),
-    members: toArr(data.members)
+    projects: toArr(data.projects).map(p => {
+      const columns = toArr(p.columns);
+      return {
+        ...p,
+        columns: columns.length ? columns : DEFAULT_COLUMNS.map(c => ({ ...c })),
+        cards: toArr(p.cards).map(c => ({
+          ...c,
+          checklist: toArr(c.checklist),
+          archived: c.archived === true
+        }))
+      };
+    }),
+    members: toArr(data.members),
+    crm: toArr(data.crm)
   };
 }
 
@@ -507,9 +661,10 @@ function defaultShared() {
   return {
     projects: [{
       id: pid, name: "My First Project",
+      columns: DEFAULT_COLUMNS.map(c => ({ ...c })),
       cards: [
-        { id: uid(), title: "Welcome! This board is live.", desc: "Everyone with this URL sees the same board in real time. Changes sync instantly.", priority: "med", column: "backlog", assignee: null, due: null, checklist: [] },
-        { id: uid(), title: "Add your teammates", desc: "Use the sidebar to add team members, then assign cards to them.", priority: "low", column: "inprogress", assignee: null, due: null,
+        { id: uid(), title: "Welcome! This board is live.", desc: "Everyone with this URL sees the same board in real time. Changes sync instantly.", priority: "med", column: "backlog", assignee: null, due: null, checklist: [], archived: false },
+        { id: uid(), title: "Add your teammates", desc: "Use the sidebar to add team members, then assign cards to them.", priority: "low", column: "inprogress", assignee: null, due: null, archived: false,
           checklist: [
             { id: uid(), text: "Click + Add Member in the sidebar", done: false },
             { id: uid(), text: "Assign this card to someone", done: false },
@@ -517,7 +672,8 @@ function defaultShared() {
         },
       ]
     }],
-    members: []
+    members: [],
+    crm: []
   };
 }
 
@@ -594,7 +750,19 @@ db.ref(".info/connected").on("value", snap => {
 function $(s) { return document.querySelector(s); }
 
 function renderAll() {
-  applyTheme(); renderProjects(); renderMembers(); renderFilters(); renderBoard();
+  applyTheme(); renderProjects(); renderMembers(); renderFilters();
+  applyViewMode();
+  if (local.view === "crm") renderCRM(); else renderBoard();
+}
+
+function applyViewMode() {
+  const board = document.querySelector(".main");
+  const crm   = document.querySelector(".crm-main");
+  if (board) board.style.display = local.view === "board" ? "flex" : "none";
+  if (crm)   crm.style.display   = local.view === "crm"   ? "flex" : "none";
+  document.querySelectorAll(".view-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.view === local.view);
+  });
 }
 
 function applyTheme() {
@@ -671,33 +839,159 @@ function renderBoard() {
   const proj = activeProject(); if (!proj) return;
   const f = local.filters;
   const visible = proj.cards.filter(c => {
+    if (c.archived) return false;
     if (f.assignee === "__unassigned__" && c.assignee) return false;
     if (f.assignee && f.assignee !== "__unassigned__" && c.assignee !== f.assignee) return false;
     if (f.priority && c.priority !== f.priority) return false;
     return true;
   });
-  COLUMNS.forEach(col => {
+
+  proj.columns.forEach(col => {
     const cards = visible.filter(c => c.column === col.id);
     const colEl = document.createElement("div");
     colEl.className = "column"; colEl.dataset.colId = col.id;
     colEl.innerHTML = `
       <div class="column-header">
-        <div class="column-title"></div>
+        <div class="column-drag-handle" title="Drag to reorder">⋮⋮</div>
+        <div class="column-title" title="Double-click to rename"></div>
         <div class="column-count">${cards.length}</div>
+        <button class="column-del" title="Delete column">×</button>
       </div>
       <div class="column-body" data-col-body="${col.id}"></div>
       <div class="column-footer"></div>`;
-    colEl.querySelector(".column-title").textContent = col.name;
+    const titleEl = colEl.querySelector(".column-title");
+    titleEl.textContent = col.name;
+    titleEl.addEventListener("dblclick", () => beginColumnRename(col.id, titleEl));
+
+    colEl.querySelector(".column-del").addEventListener("click", e => {
+      e.stopPropagation();
+      if (proj.columns.length <= 1) { alert("A board needs at least one column."); return; }
+      const used = proj.cards.filter(c => c.column === col.id && !c.archived).length;
+      const msg = used
+        ? `Delete "${col.name}"? ${used} card(s) will be moved to "${proj.columns.find(c => c.id !== col.id).name}".`
+        : `Delete "${col.name}"?`;
+      if (!confirm(msg)) return;
+      const fallback = proj.columns.find(c => c.id !== col.id).id;
+      proj.cards.forEach(c => { if (c.column === col.id) c.column = fallback; });
+      proj.columns = proj.columns.filter(c => c.id !== col.id);
+      saveState(); renderBoard();
+    });
+
     const body = colEl.querySelector(".column-body");
     cards.forEach(card => body.appendChild(buildCardEl(card)));
     colEl.querySelector(".column-footer").appendChild(buildAddCardEl(col.id));
-    body.addEventListener("dragover",  e => { e.preventDefault(); colEl.classList.add("drag-over"); });
-    body.addEventListener("dragleave", e => { if (!colEl.contains(e.relatedTarget)) colEl.classList.remove("drag-over"); });
+
+    /* CARD DROP — only when a card is being dragged (not a column) */
+    body.addEventListener("dragover",  e => {
+      if (e.dataTransfer.types.includes("text/colid")) return;
+      e.preventDefault(); colEl.classList.add("drag-over");
+    });
+    body.addEventListener("dragleave", e => {
+      if (!colEl.contains(e.relatedTarget)) colEl.classList.remove("drag-over");
+    });
     body.addEventListener("drop", e => {
+      if (e.dataTransfer.types.includes("text/colid")) return;
       e.preventDefault(); colEl.classList.remove("drag-over");
       const id = e.dataTransfer.getData("text/cardId"); if (id) moveCardToColumn(id, col.id);
     });
+
+    /* COLUMN DRAG — handle is the dotted icon to keep card area free for cards */
+    const handle = colEl.querySelector(".column-drag-handle");
+    handle.draggable = true;
+    handle.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/colId", col.id);
+      e.dataTransfer.effectAllowed = "move";
+      colEl.classList.add("dragging-col");
+    });
+    handle.addEventListener("dragend", () => colEl.classList.remove("dragging-col"));
+
     board.appendChild(colEl);
+  });
+
+  /* Add-column tile */
+  const addTile = document.createElement("button");
+  addTile.className = "column-add-tile";
+  addTile.textContent = "+ Add column";
+  addTile.addEventListener("click", () => {
+    const name = prompt("Column name:"); if (!name?.trim()) return;
+    proj.columns.push({ id: uid(), name: name.trim() });
+    saveState(); renderBoard();
+  });
+  board.appendChild(addTile);
+
+  wireBoardColumnDnD();
+}
+
+/* ─ Column drag-and-drop with snap-to-slot insertion indicator ─ */
+function wireBoardColumnDnD() {
+  const board = $("#board"); if (!board || board.dataset.colDnDWired === "1") return;
+  board.dataset.colDnDWired = "1";
+
+  const indicator = document.createElement("div");
+  indicator.className = "col-drop-indicator";
+  indicator.style.display = "none";
+
+  function targetIndex(clientX) {
+    const cols = [...board.querySelectorAll(".column:not(.dragging-col)")];
+    for (let i = 0; i < cols.length; i++) {
+      const r = cols[i].getBoundingClientRect();
+      if (clientX < r.left + r.width / 2) return { index: i, beforeEl: cols[i] };
+    }
+    return { index: cols.length, beforeEl: null };
+  }
+
+  board.addEventListener("dragover", e => {
+    if (!e.dataTransfer.types.includes("text/colid")) return;
+    e.preventDefault();
+    const t = targetIndex(e.clientX);
+    if (!indicator.parentNode) board.insertBefore(indicator, board.firstChild);
+    if (t.beforeEl) board.insertBefore(indicator, t.beforeEl);
+    else            board.insertBefore(indicator, board.querySelector(".column-add-tile"));
+    indicator.style.display = "block";
+  });
+
+  board.addEventListener("dragleave", e => {
+    if (!board.contains(e.relatedTarget)) indicator.style.display = "none";
+  });
+
+  board.addEventListener("drop", e => {
+    if (!e.dataTransfer.types.includes("text/colid")) return;
+    e.preventDefault();
+    indicator.style.display = "none";
+    const draggedId = e.dataTransfer.getData("text/colId");
+    const proj = activeProject(); if (!proj) return;
+    const from = proj.columns.findIndex(c => c.id === draggedId);
+    if (from < 0) return;
+    const t = targetIndex(e.clientX);
+    /* Translate visual index (excludes the dragged column) → array index */
+    let to = t.index;
+    if (from < to) to -= 1;
+    if (to === from) return;
+    const [moved] = proj.columns.splice(from, 1);
+    proj.columns.splice(to, 0, moved);
+    saveState(); renderBoard();
+  });
+}
+
+/* ─ Inline column rename ─ */
+function beginColumnRename(colId, titleEl) {
+  const proj = activeProject(); if (!proj) return;
+  const col = proj.columns.find(c => c.id === colId); if (!col) return;
+  const input = document.createElement("input");
+  input.type = "text"; input.value = col.name; input.className = "column-title-input";
+  titleEl.replaceWith(input); input.focus(); input.select();
+  let done = false;
+  const commit = () => {
+    if (done) return; done = true;
+    const v = input.value.trim();
+    if (v && v !== col.name) { col.name = v; saveState(); }
+    renderBoard();
+  };
+  const cancel = () => { if (done) return; done = true; renderBoard(); };
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); cancel(); }
   });
 }
 
@@ -710,6 +1004,14 @@ function buildCardEl(card) {
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   const pb = document.createElement("div"); pb.className = "card-priority " + prio.cls; el.appendChild(pb);
+  const arch = document.createElement("button");
+  arch.className = "card-archive"; arch.title = "Archive card"; arch.textContent = "📦";
+  arch.addEventListener("click", e => {
+    e.stopPropagation();
+    if (!confirm(`Archive "${card.title}"?`)) return;
+    card.archived = true; saveState(); renderBoard();
+  });
+  el.appendChild(arch);
   const tt = document.createElement("div"); tt.className = "card-title"; tt.textContent = card.title; el.appendChild(tt);
   if (card.desc) { const d = document.createElement("div"); d.className = "card-desc"; d.textContent = card.desc; el.appendChild(d); }
 
@@ -756,7 +1058,7 @@ function buildAddCardEl(colId) {
     const ta = qa.querySelector("textarea"); ta.focus();
     const add = () => {
       const title = ta.value.trim(); if (!title) return;
-      activeProject().cards.push({ id: uid(), title, desc: "", priority: "med", column: colId, assignee: null, due: null, checklist: [] });
+      activeProject().cards.push({ id: uid(), title, desc: "", priority: "med", column: colId, assignee: null, due: null, checklist: [], archived: false });
       saveState(); renderBoard();
     };
     qa.querySelector(".btn-primary").addEventListener("click", add);
@@ -785,7 +1087,7 @@ function openCardModal(cardId) {
   const root = $("#modalRoot"); root.innerHTML = "";
   const overlay = document.createElement("div"); overlay.className = "modal-overlay";
   const memberOpts  = shared.members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join("");
-  const columnOpts  = COLUMNS.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  const columnOpts  = proj.columns.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   overlay.innerHTML = `
     <div class="modal">
       <div class="modal-header"><h3>Edit Card</h3><button class="close-btn" data-action="close">×</button></div>
@@ -884,7 +1186,7 @@ function openCardModal(cardId) {
    ============================================================ */
 function addProject() {
   const name = prompt("Project name:"); if (!name?.trim()) return;
-  const p = { id: uid(), name: name.trim(), cards: [] };
+  const p = { id: uid(), name: name.trim(), columns: DEFAULT_COLUMNS.map(c => ({ ...c })), cards: [] };
   shared.projects.push(p); local.activeProjectId = p.id; saveState(); renderAll();
 }
 function addMember() {
@@ -892,6 +1194,209 @@ function addMember() {
   const used  = new Set(shared.members.map(m => m.color));
   const color = AVATAR_COLORS.find(c => !used.has(c)) || AVATAR_COLORS[shared.members.length % AVATAR_COLORS.length];
   shared.members.push({ id: uid(), name: name.trim(), color }); saveState(); renderAll();
+}
+
+/* ============================================================
+   ARCHIVED MODAL
+   ============================================================ */
+function openArchivedModal() {
+  const proj = activeProject(); if (!proj) return;
+  const archived = proj.cards.filter(c => c.archived);
+  const root = $("#modalRoot"); root.innerHTML = "";
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+
+  const modal = document.createElement("div"); modal.className = "modal";
+  const header = document.createElement("div"); header.className = "modal-header";
+  header.innerHTML = `<h3>Archived Cards</h3><button class="close-btn" title="Close">×</button>`;
+  const body = document.createElement("div"); body.className = "modal-body";
+  const footer = document.createElement("div"); footer.className = "modal-footer";
+  footer.innerHTML = `<button class="btn" data-action="close">Close</button>`;
+
+  if (archived.length === 0) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "color:var(--text-muted);font-size:13px;text-align:center;padding:20px;";
+    empty.textContent = "No archived cards.";
+    body.appendChild(empty);
+  } else {
+    const list = document.createElement("div"); list.className = "archived-list";
+    archived.forEach(card => {
+      const item = document.createElement("div"); item.className = "archived-item";
+      const title = document.createElement("span"); title.className = "arch-title"; title.textContent = card.title;
+      const col = proj.columns.find(c => c.id === card.column);
+      const colSpan = document.createElement("span"); colSpan.className = "arch-col"; colSpan.textContent = col ? col.name : "—";
+      const restoreBtn = document.createElement("button"); restoreBtn.className = "btn btn-sm btn-primary"; restoreBtn.textContent = "Restore";
+      const delBtn = document.createElement("button"); delBtn.className = "btn btn-sm"; delBtn.style.color = "var(--high)"; delBtn.style.borderColor = "rgba(239,68,68,0.4)"; delBtn.textContent = "Delete";
+
+      restoreBtn.addEventListener("click", () => {
+        card.archived = false; saveState(); renderBoard(); openArchivedModal();
+      });
+      delBtn.addEventListener("click", () => {
+        if (!confirm("Delete permanently?")) return;
+        proj.cards = proj.cards.filter(c => c.id !== card.id);
+        saveState(); renderBoard(); openArchivedModal();
+      });
+
+      item.append(title, colSpan, restoreBtn, delBtn);
+      list.appendChild(item);
+    });
+    body.appendChild(list);
+  }
+
+  modal.append(header, body, footer);
+  overlay.appendChild(modal);
+  root.appendChild(overlay);
+
+  const close = () => { root.innerHTML = ""; document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) close();
+    if (e.target.classList.contains("close-btn") || e.target.dataset?.action === "close") close();
+  });
+}
+
+/* ============================================================
+   CRM
+   ============================================================ */
+function ensureCRMFilterStatusOpts() {
+  const sel = $("#crmFilterStatus"); if (!sel || sel.options.length >= 2) return;
+  CRM_STATUSES.forEach(s => {
+    const o = document.createElement("option"); o.value = s; o.textContent = titleCase(s); sel.appendChild(o);
+  });
+}
+
+function titleCase(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function renderCRM() {
+  ensureCRMFilterStatusOpts();
+  $("#crmFilterText").value   = local.crmFilters.text || "";
+  $("#crmFilterStatus").value = local.crmFilters.status || "";
+
+  const table = $("#crmTable"); table.innerHTML = "";
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+  table.append(thead, tbody);
+
+  const cols = [
+    { key: "organization",    label: "Organization" },
+    { key: "contactName",     label: "Contact" },
+    { key: "email",           label: "Email" },
+    { key: "phone",           label: "Phone" },
+    { key: "status",          label: "Status" },
+    { key: "lastInteraction", label: "Last Interaction" },
+    { key: "nextAction",      label: "Next Action" }
+  ];
+
+  let { sortBy, sortDir } = local.crmFilters;
+  if (!cols.find(c => c.key === sortBy)) sortBy = "organization";
+
+  const tr = document.createElement("tr");
+  cols.forEach(c => {
+    const th = document.createElement("th"); th.className = "crm-th"; th.dataset.sort = c.key; th.textContent = c.label;
+    if (c.key === sortBy) {
+      th.classList.add("sorted");
+      const arrow = document.createElement("span"); arrow.className = "sort-arrow";
+      arrow.textContent = sortDir === "asc" ? "↑" : "↓";
+      th.appendChild(arrow);
+    }
+    th.addEventListener("click", () => {
+      if (sortBy === c.key) local.crmFilters.sortDir = sortDir === "asc" ? "desc" : "asc";
+      else { local.crmFilters.sortBy = c.key; local.crmFilters.sortDir = "asc"; }
+      saveLocalPrefs(); renderCRM();
+    });
+    tr.appendChild(th);
+  });
+  const thEmpty = document.createElement("th"); thEmpty.style.cursor = "default"; tr.appendChild(thEmpty);
+  thead.appendChild(tr);
+
+  const txt = (local.crmFilters.text || "").toLowerCase();
+  let rows = shared.crm.filter(r => {
+    if (txt) {
+      const hay = `${r.organization || ""} ${r.contactName || ""} ${r.email || ""}`.toLowerCase();
+      if (!hay.includes(txt)) return false;
+    }
+    if (local.crmFilters.status && r.status !== local.crmFilters.status) return false;
+    return true;
+  });
+
+  const dir = sortDir === "asc" ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = a[sortBy], bv = b[sortBy];
+    if (sortBy === "lastInteraction" || sortBy === "createdAt") {
+      return dir * ((Date.parse(av) || 0) - (Date.parse(bv) || 0));
+    }
+    return dir * String(av || "").localeCompare(String(bv || ""));
+  });
+
+  rows.forEach(r => tbody.appendChild(buildCRMRow(r)));
+}
+
+function buildCRMRow(row) {
+  const tr = document.createElement("tr"); tr.dataset.id = row.id;
+
+  const mkTextCell = field => {
+    const td = document.createElement("td");
+    td.className = "crm-cell"; td.contentEditable = "true"; td.textContent = row[field] || "";
+    td.addEventListener("blur", () => {
+      const v = td.textContent.trim();
+      if (row[field] !== v) { row[field] = v; saveState(); }
+    });
+    td.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); td.blur(); } });
+    return td;
+  };
+
+  ["organization","contactName","email","phone"].forEach(f => tr.appendChild(mkTextCell(f)));
+
+  /* status */
+  const statusTd = document.createElement("td");
+  const sel = document.createElement("select"); sel.className = "crm-status-select";
+  CRM_STATUSES.forEach(s => {
+    const o = document.createElement("option"); o.value = s; o.textContent = titleCase(s); sel.appendChild(o);
+  });
+  sel.value = row.status; sel.style.backgroundColor = CRM_STATUS_COLORS[row.status] || "#6b7280";
+  sel.addEventListener("change", () => {
+    row.status = sel.value; sel.style.backgroundColor = CRM_STATUS_COLORS[row.status] || "#6b7280";
+    saveState();
+  });
+  statusTd.appendChild(sel); tr.appendChild(statusTd);
+
+  /* last interaction */
+  const dateTd = document.createElement("td"); dateTd.className = "crm-cell";
+  const dateIn = document.createElement("input"); dateIn.type = "date"; dateIn.value = row.lastInteraction || "";
+  dateIn.addEventListener("change", () => {
+    row.lastInteraction = dateIn.value || null; saveState();
+  });
+  dateTd.appendChild(dateIn); tr.appendChild(dateTd);
+
+  /* next action */
+  tr.appendChild(mkTextCell("nextAction"));
+
+  /* delete */
+  const delTd = document.createElement("td");
+  const delBtn = document.createElement("button"); delBtn.className = "crm-row-del"; delBtn.title = "Delete contact"; delBtn.textContent = "×";
+  delBtn.addEventListener("click", () => {
+    if (!confirm("Delete this contact?")) return;
+    shared.crm = shared.crm.filter(r => r.id !== row.id);
+    saveState(); renderCRM();
+  });
+  delTd.appendChild(delBtn); tr.appendChild(delTd);
+
+  return tr;
+}
+
+function addCRMContact() {
+  const id = uid();
+  shared.crm.push({
+    id, organization: "", contactName: "", email: "", phone: "",
+    status: "planned", lastInteraction: null, nextAction: "", createdAt: Date.now()
+  });
+  saveState(); renderCRM();
+  setTimeout(() => {
+    const tr = document.querySelector(`#crmTable tr[data-id="${id}"]`);
+    tr?.querySelector(".crm-cell")?.focus();
+  }, 50);
 }
 
 /* ============================================================
@@ -904,6 +1409,25 @@ function wireEvents() {
   $("#filterAssignee").addEventListener("change", e => { local.filters.assignee = e.target.value; saveLocalPrefs(); renderBoard(); });
   $("#filterPriority").addEventListener("change", e => { local.filters.priority  = e.target.value; saveLocalPrefs(); renderBoard(); });
   $("#clearFiltersBtn").addEventListener("click", () => { local.filters = { assignee: "", priority: "" }; saveLocalPrefs(); renderFilters(); renderBoard(); });
+
+  /* View switcher */
+  document.querySelectorAll(".view-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      local.view = btn.dataset.view; saveLocalPrefs(); renderAll();
+    });
+  });
+
+  /* Archived modal */
+  $("#viewArchivedBtn").addEventListener("click", openArchivedModal);
+
+  /* CRM toolbar */
+  $("#crmAddBtn").addEventListener("click", addCRMContact);
+  $("#crmFilterText").addEventListener("input", e => {
+    local.crmFilters.text = e.target.value; saveLocalPrefs(); renderCRM();
+  });
+  $("#crmFilterStatus").addEventListener("change", e => {
+    local.crmFilters.status = e.target.value; saveLocalPrefs(); renderCRM();
+  });
 }
 
 /* ============================================================
